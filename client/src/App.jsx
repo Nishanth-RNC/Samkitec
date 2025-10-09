@@ -90,7 +90,23 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" onChange={(e)=>setSelectedFile(e.target.files[0])} />
-              <button className="btn btn-primary" onClick={handleUpload} disabled={uploading} style={{ marginLeft: 8 }}>Upload</button>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept=".pdf,.doc,.docx"
+    onChange={(e) => setSelectedFile(e.target.files[0])}
+  />
+  <button
+    className="btn btn-primary"
+    onClick={handleUpload}
+    disabled={uploading}
+    style={{ marginLeft: 8 }}
+  >
+    {uploading ? 'Uploading...' : 'Upload'}
+  </button>
+  {uploading && <div className="spinner"></div>}
+</div>
             </div>
             <div style={{ minWidth:360 }}>
               <div className="search-row">

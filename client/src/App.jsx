@@ -86,55 +86,53 @@ export default function App() {
         </header>
 
       <main className="container">
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-  <input
-    ref={fileInputRef}
-    type="file"
-    accept=".pdf,.doc,.docx"
-    onChange={(e) => setSelectedFile(e.target.files[0])}
-  />
-  <button
-    className="btn btn-primary"
-    onClick={handleUpload}
-    disabled={uploading}
-    style={{ marginLeft: 8 }}
-  >
-    {uploading ? 'Uploading...' : 'Upload'}
-  </button>
-  {uploading && <div className="spinner"></div>}
-</div>
-            </div>
-            <div style={{ minWidth:360 }}>
-              <div className="search-row">
-                <input placeholder="Search by name or title" value={search} onChange={(e)=>setSearch(e.target.value)} style={{ flex:1, padding:8, borderRadius:8, border:'1px solid #5a5a70', background:'#1f1f2b', color:'#e0e0e0' }} />
-                <input type="date" value={from} onChange={(e)=>setFrom(e.target.value)} style={{ padding:8, borderRadius:8, background:'#1f1f2b', color:'#e0e0e0', border:'1px solid #5a5a70' }} />
-                <input type="date" value={to} onChange={(e)=>setTo(e.target.value)} style={{ padding:8, borderRadius:8, background:'#1f1f2b', color:'#e0e0e0', border:'1px solid #5a5a70' }} />
-              </div>
-            </div>
+  <div className="card">
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+      <div style={{ flex: 1 }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx"
+          onChange={(e) => setSelectedFile(e.target.files[0])}
+        />
+        <button
+          className="btn btn-primary"
+          onClick={handleUpload}
+          disabled={uploading}
+          style={{ marginLeft: 8 }}
+        >
+          {uploading ? 'Uploading...' : 'Upload'}
+        </button>
+        {uploading && <div className="spinner"></div>}
+      </div>
+
+      <div style={{ minWidth: 360 }}>
+        <div className="search-row">
+          <input placeholder="Search by name or title" value={search} onChange={(e)=>setSearch(e.target.value)} style={{ flex:1, padding:8, borderRadius:8, border:'1px solid #5a5a70', background:'#1f1f2b', color:'#e0e0e0' }} />
+          <input type="date" value={from} onChange={(e)=>setFrom(e.target.value)} style={{ padding:8, borderRadius:8, background:'#1f1f2b', color:'#e0e0e0', border:'1px solid #5a5a70' }} />
+          <input type="date" value={to} onChange={(e)=>setTo(e.target.value)} style={{ padding:8, borderRadius:8, background:'#1f1f2b', color:'#e0e0e0', border:'1px solid #5a5a70' }} />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* File list grid */}
+  <div style={{ marginTop:12 }} className="grid">
+    {files.map(f => (
+      <div key={f.id} className="file-card card">
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'start' }}>
+          <div>
+            <div style={{ fontWeight:700 }}>{f.title}</div>
+            <div className="small">{f.original_name}</div>
+            <div className="small">Uploaded: {new Date(f.upload_date).toLocaleString()}</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <button onClick={()=>handleDownload(f.id)}>Download</button>
+            <button onClick={()=>handleRename(f.id, f.title)}>Rename</button>
+            <button onClick={()=>handleDelete(f.id)}>Delete</button>
           </div>
         </div>
-
-        <div style={{ marginTop:12 }} className="grid">
-          {files.map(f => (
-            <div key={f.id} className="file-card card">
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'start' }}>
-                <div>
-                  <div style={{ fontWeight:700 }}>{f.title}</div>
-                  <div className="small">{f.original_name}</div>
-                  <div className="small">Uploaded: {new Date(f.upload_date).toLocaleString()}</div>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  <button onClick={()=>handleDownload(f.id)}>Download</button>
-                  <button onClick={()=>handleRename(f.id, f.title)}>Rename</button>
-                  <button onClick={()=>handleDelete(f.id)}>Delete</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
-  )
-}
+      </div>
+    ))}
+  </div>
+</main>

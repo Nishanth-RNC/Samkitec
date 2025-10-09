@@ -89,8 +89,6 @@ export default function App() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" onChange={(e)=>setSelectedFile(e.target.files[0])} />
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
   <input
     ref={fileInputRef}
     type="file"

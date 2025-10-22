@@ -104,7 +104,7 @@ app.get('/api/documents', (req, res) => {
     where.push('date(upload_date) <= date(?)');
     params.push(to);
   }
-  if (type && (type === 'process' || type === 'work')) { // <-- Add this bloc k
+  if (type === 'process' || type === 'work') { // <-- Add this bloc k
     where.push('doc_type = ?');
     params.push(type);
   }
@@ -113,7 +113,10 @@ app.get('/api/documents', (req, res) => {
                FROM documents ${whereSQL} ORDER BY upload_date DESC LIMIT ? OFFSET ?`;
   params.push(Number(limit), Number(offset));
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err){
+      console.error("Database error:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
     res.json(rows);
   });
 });

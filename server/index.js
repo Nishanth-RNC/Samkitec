@@ -20,6 +20,7 @@ const db = new sqlite3.Database(DB_FILE);
 
 // Ensure table exists with doc_type
 db.serialize(() => {
+  db.run('DROP TABLE IF EXISTS documents');
   db.run(`CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     original_name TEXT,

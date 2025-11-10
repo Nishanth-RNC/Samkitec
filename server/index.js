@@ -11,6 +11,17 @@ const path = require('path');
 
 const PORT = process.env.PORT || 4000;
 const DB_FILE = process.env.DATABASE_FILE || path.join(__dirname, 'data', 'samkitec.sqlite');
+const fs = require('fs');
+
+// Ensure the directory for the database file exists
+const dbDir = path.dirname(DB_FILE);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+  console.log("✅ Created database directory:", dbDir);
+} else {
+  console.log("✅ Database directory exists:", dbDir);
+}
+
 const db = new sqlite3.Database(DB_FILE);
 
 // Cloudinary config

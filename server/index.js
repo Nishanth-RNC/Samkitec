@@ -35,6 +35,27 @@ const createTable = () => {
   )`);
 };
 createTable();
+// 🧠 Auto-check and add missing 'file_url' column (prevents SQLITE_ERROR)
+db.all("PRAGMA table_info(documents)", (err, rows) => {
+  if (err) {
+    console.error("Failed to check table info:", err.message);
+    return;
+  }
+
+  const hasFileUrl = rows.some(col => col.name === "file_url");
+  if (!hasFileUrl) {
+    console.log("Adding missing 'file_url' column...");
+    db.run("ALTER TABLE documents ADD COLUMN file_url TEXT", alterErr => {
+      if (alterErr) {
+        console.error("Error adding 'file_url' column:", alterErr.message);
+      } else {
+        console.log("✅ 'file_url' column added successfully.");
+      }
+    });
+  } else {
+    console.log("✅ 'file_url' column already exists.");
+  }
+});
 
 const app = express();
 app.use(cors());

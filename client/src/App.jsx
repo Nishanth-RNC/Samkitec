@@ -148,20 +148,32 @@ export default function App() {
 
   /* ---------------- PREVIEW & DOWNLOAD ---------------- */
 
-  const handlePreview = (url) => {
-    if (!url) return;
-    window.open(url, "_blank"); // NO fl_attachment here
-  };
+ const handlePreview = (url) => {
+  if (!url) return;
 
-  const handleDownload = (url) => {
-    if (!url) return;
-    const downloadUrl = url.replace(
-      "/upload/",
-      "/upload/fl_attachment/"
+  // PDFs can preview directly
+  if (url.toLowerCase().endsWith('.pdf')) {
+    window.open(url, '_blank');
+  } else {
+    // DOCX needs Google Docs viewer
+    window.open(
+      `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`,
+      '_blank'
     );
-    window.open(downloadUrl, "_blank");
-  };
+  }
+};
 
+const handleDownload = (url) => {
+  if (!url) return;
+
+  // Force download with filename
+  const downloadUrl = url.replace(
+    '/upload/',
+    '/upload/fl_attachment/'
+  );
+
+  window.open(downloadUrl, '_blank');
+};
   /* ---------------- UI ---------------- */
 
   return (

@@ -163,13 +163,14 @@ export default function App() {
   }
 };
 
-const handleDownload = (url) => {
+const handleDownload = (url, originalName) => {
   if (!url) return;
 
-  // Force download with filename
+  const encodedName = encodeURIComponent(originalName);
+
   const downloadUrl = url.replace(
     '/upload/',
-    '/upload/fl_attachment/'
+    `/upload/fl_attachment:${encodedName}/`
   );
 
   window.open(downloadUrl, '_blank');
@@ -279,9 +280,7 @@ const handleDownload = (url) => {
                   >
                     Preview
                   </button>
-                  <button
-                    onClick={() => handleDownload(f.file_url)}
-                  >
+                  <button onClick={() => handleDownload(f.file_url, f.original_name)}>
                     Download
                   </button>
                   <button

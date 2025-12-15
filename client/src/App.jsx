@@ -265,19 +265,18 @@ const handleDownload = (url, originalName) => {
               <div key={f.id} className="card"style={{ padding: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{f.title}</div>
                 <div className="small" style={{marginTop: 4, wordBreak: 'break-all'}}>{f.original_name}</div>
-                <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
                 <div className="small">
                   Uploaded:{" "}
                   {new Date(f.upload_date).toLocaleString()}
                 </div>
 
-                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+                <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
                   <button
-                    onClick={() => handlePreview(f.file_url)} style={{ background: '#2196F3' }}
+                    onClick={() => handlePreview(f.file_url)}
                   >
                     Preview
                   </button>
-                  <button onClick={() => handleDownload(f.file_url, f.original_name)} style={{ background: '#009688' }}>
+                  <button onClick={() => handleDownload(f.file_url, f.original_name)}>
                     Download
                   </button>
                   <button

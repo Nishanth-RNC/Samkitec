@@ -1,139 +1,185 @@
-import React, { useEffect, useState, useRef } from 'react'
-import logo from './assets/logo.jpeg'
+import React, { useEffect, useState, useRef } from "react";
+import logo from "./assets/logo.jpeg";
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000'
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 export default function App() {
-  const [files, setFiles] = useState([])
-  const [search, setSearch] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [docTypeFilter, setDocTypeFilter] = useState('all')
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [docType, setDocType] = useState('process')
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef()
+  const [files, setFiles] = useState([]);
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [docTypeFilter, setDocTypeFilter] = useState("all");
+
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [docType, setDocType] = useState("process");
+  const [uploading, setUploading] = useState(false);
+
+  const fileInputRef = useRef(null);
+
+  /* ---------------- FETCH DOCUMENT LIST ---------------- */
 
   useEffect(() => {
-    fetchList()
-  }, [])
+    fetchList();
+  }, []);
 
   useEffect(() => {
-    const delay = setTimeout(() => fetchList(), 300)
-    return () => clearTimeout(delay)
-  }, [search, from, to, docTypeFilter])
+    const delay = setTimeout(fetchList, 300);
+    return () => clearTimeout(delay);
+  }, [search, from, to, docTypeFilter]);
 
   async function fetchList() {
     try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-      if (from) params.set('from', from)
-      if (to) params.set('to', to)
-      if (docTypeFilter && docTypeFilter !== 'all') params.set('type', docTypeFilter)
+      const params = new URLSearchParams();
 
-      // Ensure URL doesn't double slash if API_BASE ends with /
-      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
-      const res = await fetch(`${baseUrl}/api/documents?` + params.toString())
+      if (search) params.set("search", search);
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (docTypeFilter !== "all") params.set("type", docTypeFilter);
 
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
+      const base =
+        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
 
-      const data = await res.json()
-      setFiles(Array.isArray(data) ? data : [])
+      const res = await fetch(
+        `${base}/api/documents?${params.toString()}`
+      );
+
+      if (!res.ok) throw new Error("Failed to fetch");
+
+      const data = await res.json();
+      setFiles(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error fetching documents:', err)
-      setFiles([])
+      console.error(err);
+      setFiles([]);
     }
   }
+
+  /* ---------------- UPLOAD ---------------- */
 
   async function handleUpload() {
-    if (!selectedFile) return alert('Choose PDF or DOCX')
-    setUploading(true)
-    const form = new FormData()
-    form.append('file', selectedFile)
-    form.append('title', selectedFile.name)
-    form.append('doc_type', docType)
-    
+    if (!selectedFile) {
+      alert("Please choose a PDF or DOCX file");
+      return;
+    }
+
+    setUploading(true);
+
     try {
-      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
-      const res = await fetch(`${baseUrl}/api/upload`, { method: 'POST', body: form })
-      
+      const form = new FormData();
+      form.append("file", selectedFile);
+      form.append("title", selectedFile.name);
+      form.append("doc_type", docType);
+
+      const base =
+        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
+
+      const res = await fetch(`${base}/api/upload`, {
+        method: "POST",
+        body: form,
+      });
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || `Server Error: ${res.status}`)
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
       }
-      
-      setSelectedFile(null)
-      fileInputRef.current.value = ''
-      await fetchList()
-      alert('Uploaded successfully!')
+
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      await fetchList();
+      alert("Uploaded successfully");
     } catch (err) {
-      alert(err.message)
+      alert(err.message);
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
   }
+
+  /* ---------------- DELETE ---------------- */
 
   async function handleDelete(id) {
-    if (!confirm('Delete this file?')) return
-    const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
-    await fetch(`${baseUrl}/api/documents/${id}`, { method: 'DELETE' })
-    await fetchList()
+    if (!confirm("Delete this document?")) return;
+
+    try {
+      const base =
+        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
+
+      const res = await fetch(`${base}/api/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+
+      await fetchList();
+    } catch (err) {
+      alert(err.message);
+    }
   }
+
+  /* ---------------- RENAME ---------------- */
 
   async function handleRename(id, oldTitle) {
-    const newTitle = prompt('New title', oldTitle)
-    if (!newTitle || newTitle === oldTitle) return
-    
+    const newTitle = prompt("New title", oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+
     try {
-      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
-      const res = await fetch(`${baseUrl}/api/documents/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle })
-      })
-      
-      if (!res.ok) {
-        if (res.status === 404) {
-           alert('Document mismatch: The list is outdated. Refreshing...')
-           await fetchList()
-           return
-        }
-        throw new Error(`Rename failed: ${res.status}`)
+      const base =
+        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
+
+      const res = await fetch(`${base}/api/documents/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+
+      if (res.status === 404) {
+        alert("Document mismatch. Refreshing list…");
+        await fetchList();
+        return;
       }
-      await fetchList()
+
+      if (!res.ok) throw new Error("Rename failed");
+
+      await fetchList();
     } catch (err) {
-      alert(err.message)
+      alert(err.message);
     }
   }
 
-  const handlePreview = (fileUrl) => {
-    if (!fileUrl) return;
-    
-    // For DOCX/PPTX/XLSX, Google Docs Viewer is required
-    if (fileUrl.match(/\.(docx?|pptx?|xlsx?)$/i)) {
-      window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`, '_blank');
-    } 
-    // For PDFs and Images, try opening directly
-    else {
-      window.open(fileUrl, '_blank');
-    }
-  }
+  /* ---------------- PREVIEW & DOWNLOAD ---------------- */
 
-  // Force download as backup if preview fails
-  const handleDownload = (fileUrl) => {
-    if (!fileUrl) return;
-    // Cloudinary trick: add fl_attachment to force download header
-    const downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
-    window.open(downloadUrl, '_blank');
-  }
+  const handlePreview = (url) => {
+    if (!url) return;
+    window.open(url, "_blank"); // NO fl_attachment here
+  };
+
+  const handleDownload = (url) => {
+    if (!url) return;
+    const downloadUrl = url.replace(
+      "/upload/",
+      "/upload/fl_attachment/"
+    );
+    window.open(downloadUrl, "_blank");
+  };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <div>
       <header
         className="header"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
       >
-        <img src={logo} alt="Samkitec Logo" style={{ height: 60, width: 60, objectFit: 'contain' }} />
+        <img
+          src={logo}
+          alt="Samkitec"
+          style={{ height: 60, width: 60 }}
+        />
         <div>
           <h1>Samkitec</h1>
           <h2>green technologies</h2>
@@ -141,85 +187,110 @@ export default function App() {
       </header>
 
       <main className="container">
-        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '300px' }}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-            />
-            <select value={docType} onChange={(e) => setDocType(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
-              <option value="process">Process Report</option>
-              <option value="work">Work Report</option>
-            </select>
-            <button
-              className="btn btn-primary"
-              onClick={handleUpload}
-              disabled={uploading}
-              style={{ marginLeft: 8 }}
-            >
-              {uploading ? 'Scanning & Uploading...' : 'Upload'}
-            </button>
-          </div>
+        {/* Upload */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx"
+            onChange={(e) => setSelectedFile(e.target.files[0])}
+          />
 
-          <div style={{ minWidth: 300, flex: 1 }}>
-            <div className="search-row">
-              <input
-                placeholder="Search logs..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ flex: 1, padding: 8, borderRadius: 8 }}
-              />
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: 8, borderRadius: 8 }} />
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: 8, borderRadius: 8 }} />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
           <select
-            value={docTypeFilter}
-            onChange={(e) => setDocTypeFilter(e.target.value)}
-            style={{ padding: 8, borderRadius: 8, background: '#1f1f2b', color: '#e0e0e0', border: '1px solid #5a5a70' }}
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            style={{ marginLeft: 8 }}
           >
-            <option value="all">All Types</option>
             <option value="process">Process Report</option>
             <option value="work">Work Report</option>
           </select>
+
+          <button
+            onClick={handleUpload}
+            disabled={uploading || !selectedFile}
+            style={{ marginLeft: 8 }}
+          >
+            {uploading ? "Uploading…" : "Upload"}
+          </button>
         </div>
 
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 12 }}>
-          {Array.isArray(files) && files.length > 0 ? (
+        {/* Filters */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <input
+            placeholder="Search logs…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+
+          <select
+            value={docTypeFilter}
+            onChange={(e) => setDocTypeFilter(e.target.value)}
+          >
+            <option value="all">All Types</option>
+            <option value="process">Process</option>
+            <option value="work">Work</option>
+          </select>
+        </div>
+
+        {/* File List */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(280px,1fr))",
+            gap: 12,
+          }}
+        >
+          {files.length ? (
             files.map((f) => (
-              <div key={f.id} className="file-card card" style={{ padding: 12 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{f.title}</div>
-                  <div className="small" style={{marginTop: 4, wordBreak: 'break-all'}}>{f.original_name}</div>
-                  <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
-                  <div className="small">Uploaded: {new Date(f.upload_date).toLocaleString()}</div>
+              <div key={f.id} className="card">
+                <div style={{ fontWeight: "bold" }}>{f.title}</div>
+                <div className="small">{f.original_name}</div>
+                <div className="small">
+                  Uploaded:{" "}
+                  {new Date(f.upload_date).toLocaleString()}
                 </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-                  {f.file_url && (
-                    <>
-                      <button onClick={() => handlePreview(f.file_url)} style={{ background: '#2196F3' }}>
-                        Preview
-                      </button>
-                      <button onClick={() => handleDownload(f.file_url)} style={{ background: '#009688' }}>
-                        Download
-                      </button>
-                    </>
-                  )}
-                  <button onClick={() => handleRename(f.id, f.title)}>Rename</button>
-                  <button onClick={() => handleDelete(f.id)} style={{ background: '#f44336' }}>Delete</button>
+
+                <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => handlePreview(f.file_url)}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => handleDownload(f.file_url)}
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => handleRename(f.id, f.title)}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    style={{ background: "#f44336" }}
+                    onClick={() => handleDelete(f.id)}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))
           ) : (
-            <div style={{ color: '#888', marginTop: 20 }}>No files found.</div>
+            <div style={{ color: "#888" }}>No files found.</div>
           )}
         </div>
       </main>
     </div>
-  )
+  );
 }

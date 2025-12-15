@@ -66,9 +66,8 @@ cloudinary.config({
 });
 
 // --- ClamAV Setup ---
-// We initialize this wrapper to talk to the clamav service
 const ClamScan = new NodeClam().init({
-  remove_infected: true, // If true, removes infected files
+  remove_infected: true,
   quarantine_infected: false, 
   debug_mode: false,
   file_list: null, 
@@ -91,15 +90,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- File Storage Strategy ---
-// 1. Upload to local temp disk
-// 2. Scan with ClamAV
-// 3. If Clean -> Upload to Cloudinary -> Delete temp
-// 4. If Infected -> Delete temp -> Reject
+const upload = multer({ dest: 'uploads_temp/' }); 
 
-const upload = multer({ dest: 'uploads_temp/' }); // Temporary local storage
-
-// --- Helper: Audit Logger ---
 const logAction = async (docId, action, details) => {
   try {
     await pool.query(
@@ -121,9 +113,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
   try {
     // A. Security Scan
-    // If ClamAV is not reachable (e.g. basic Render web service), this might error.
-    // Try/catch block handles connectivity issues gracefully in some setups,
-    // but for security, you typically want to fail closed.
     let isInfected = false;
     try {
         const clam = await ClamScan;
@@ -131,13 +120,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         isInfected = scanResult.isInfected;
     } catch (clamErr) {
         console.warn("ClamAV scan skipped/failed (Service unreachable?):", clamErr.message);
-        // DECISION: Allow upload if scanner is down? Or Fail?
-        // For this demo, we proceed if scanner is unreachable to avoid blocking deployment.
-        // In PROD, you should return error.
     }
 
     if (isInfected) {
-      fs.unlinkSync(tempPath); // Delete immediately
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
       return res.status(400).json({ error: 'Security Alert: File rejected due to virus detection.' });
     }
 
@@ -149,10 +135,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       unique_filename: true,
     });
 
-    // Clean up local temp file
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
-    // C. Save Metadata to Postgres
+    // C. Save Metadata
     const id = uuidv4();
     const meta = {
       id,
@@ -171,13 +156,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       [meta.id, meta.original_name, meta.file_url, meta.mime_type, meta.size, meta.title, meta.description, meta.doc_type]
     );
 
-    // D. Audit Log
     await logAction(id, 'UPLOAD', `Uploaded file: ${meta.original_name}`);
-
     res.json(meta);
 
   } catch (err) {
-    // Cleanup if something broke
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -224,10 +206,13 @@ app.get('/api/documents', async (req, res) => {
   }
 });
 
-// 3. Rename Document (THIS IS THE MISSING ENDPOINT causing 404)
+// 3. Rename Document
 app.put('/api/documents/:id', async (req, res) => {
   const { id } = req.params;
   const { title } = req.body;
+  
+  // Debug Log: Check if request reaches here
+  console.log(`Renaming document ${id} to "${title}"`);
 
   if (!title) return res.status(400).json({ error: 'Title is required' });
 
@@ -237,11 +222,15 @@ app.put('/api/documents/:id', async (req, res) => {
       [title, id]
     );
 
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+    if (result.rowCount === 0) {
+        console.log(`Document ${id} not found in DB`);
+        return res.status(404).json({ error: 'Not found' });
+    }
 
     await logAction(id, 'RENAME', `Renamed to: ${title}`);
     res.json(result.rows[0]);
   } catch (err) {
+    console.error("Rename Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -256,7 +245,6 @@ app.delete('/api/documents/:id', async (req, res) => {
 
     const doc = docResult.rows[0];
 
-    // Remove from Cloudinary
     try {
       const publicId = doc.file_url.split('/').pop().split('.')[0];
       await cloudinary.uploader.destroy(`samkitec_reports/${publicId}`);
@@ -264,7 +252,6 @@ app.delete('/api/documents/:id', async (req, res) => {
       console.warn('Cloudinary delete warning:', e.message);
     }
 
-    // Remove from DB
     await pool.query('DELETE FROM documents WHERE id = $1', [id]);
     
     await logAction(id, 'DELETE', `Deleted file: ${doc.original_name}`);

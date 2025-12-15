@@ -104,11 +104,12 @@ export default function App() {
 
   // Improved Preview Logic
   const handlePreview = (fileUrl) => {
-    // If it's a doc/docx/ppt, use Google Docs Viewer
-    if (fileUrl.match(/\.(docx?|pptx?|xlsx?)$/i)) {
+    // UPDATED: Now includes 'pdf' in the regex to force Google Docs Viewer
+    // This solves the "We can't open this file" browser popup issue
+    if (fileUrl.match(/\.(docx?|pptx?|xlsx?|pdf)$/i)) {
       window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`, '_blank');
     } else {
-      // PDF or Image - try direct open
+      // Images and other formats try direct open
       window.open(fileUrl, '_blank');
     }
   }

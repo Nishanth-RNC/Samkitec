@@ -87,7 +87,11 @@ export default function App() {
         body: JSON.stringify({ title: newTitle })
       })
       if (!res.ok) {
-        if (res.status === 404) throw new Error('Document not found in database (try re-uploading)')
+        if (res.status === 404) {
+           alert('Document not found (it may have been deleted). Refreshing list...')
+           await fetchList()
+           return
+        }
         throw new Error(`Rename failed: ${res.status}`)
       }
       await fetchList()
@@ -97,12 +101,11 @@ export default function App() {
   }
 
   const handlePreview = (fileUrl) => {
-    // Only use Google Docs Viewer for Office documents
-    // Removed PDF to fix the "No preview available" / "We can't open this file" errors
-    if (fileUrl.match(/\.(docx?|pptx?|xlsx?)$/i)) {
+    // Use Google Docs Viewer for Office documents AND PDFs to avoid browser plugin issues
+    if (fileUrl.match(/\.(docx?|pptx?|xlsx?|pdf)$/i)) {
       window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`, '_blank');
     } else {
-      // Open PDFs and Images directly
+      // Images and other formats try direct open
       window.open(fileUrl, '_blank');
     }
   }

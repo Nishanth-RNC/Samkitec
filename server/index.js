@@ -51,14 +51,22 @@ cloudinary.config({
 });
 
 /* ---------------- CLAMAV ---------------- */
-const ClamScan = new NodeClam().init({
-  clamdscan: {
-    host: process.env.CLAMAV_HOST || 'clamav',
-    port: process.env.CLAMAV_PORT || 3310,
-    active: true,
-    bypass_test: true,
-  },
-});
+const ENABLE_CLAMAV = process.env.ENABLE_CLAMAV === 'true';
+
+let ClamScan = null;
+
+if (ENABLE_CLAMAV) {
+  const NodeClam = require('clamscan');
+  ClamScan = new NodeClam().init({
+    clamdscan: {
+      host: process.env.CLAMAV_HOST || 'clamav',
+      port: process.env.CLAMAV_PORT || 3310,
+      active: true,
+      bypass_test: true,
+    },
+  });
+}
+
 
 /* ---------------- APP SETUP ---------------- */
 const app = express();
@@ -84,9 +92,11 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const clam = await ClamScan;
-    const scan = await clam.isInfected(req.file.path);
-    if (scan.isInfected) throw new Error('Virus detected');
+        if (ENABLE_CLAMAV && ClamScan) {
+            const clam = await ClamScan;
+            const scan = await clam.isInfected(req.file.path);
+            if (scan.isInfected) throw new Error('Virus detected');
+        }
 
     const cloud = await cloudinary.uploader.upload(req.file.path, {
       folder: 'samkitec_reports',

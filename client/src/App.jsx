@@ -190,8 +190,8 @@ const handleDownload = (url, originalName) => {
       >
         <img
           src={logo}
-          alt="Samkitec"
-          style={{ height: 60, width: 60 }}
+          alt="Samkitec Logo"
+          style={{ height: 60, width: 60, objectFit: "contain" }}
         />
         <div>
           <h1>Samkitec</h1>
@@ -201,53 +201,56 @@ const handleDownload = (url, originalName) => {
 
       <main className="container">
         {/* Upload */}
-        <div className="card" style={{ marginBottom: 12 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx"
-            onChange={(e) => setSelectedFile(e.target.files[0])}
-          />
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '300px' }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx"
+              onChange={(e) => setSelectedFile(e.target.files[0])}
+            />
 
-          <select
-            value={docType}
-            onChange={(e) => setDocType(e.target.value)}
-            style={{ marginLeft: 8 }}
-          >
-            <option value="process">Process Report</option>
-            <option value="work">Work Report</option>
-          </select>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+                <option value="process">Process Report</option>
+                <option value="work">Work Report</option>
+              </select>
 
-          <button
-            onClick={handleUpload}
-            disabled={uploading || !selectedFile}
-            style={{ marginLeft: 8 }}
-          >
-            {uploading ? "Uploading…" : "Upload"}
-          </button>
-        </div>
+            <button
+              onClick={handleUpload}
+              disabled={uploading || !selectedFile}
+              style={{ marginLeft: 8 }}
+            >
+              {uploading ? "Uploading…" : "Upload"}
+            </button>
+          </div>
 
         {/* Filters */}
-        <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card" style={{minWidth: 300, flex: 1}}>
           <input
             placeholder="Search logs…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, padding: 8, borderRadius: 8 }}
           />
           <input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
+            style={{ padding: 8, borderRadius: 8 }}
           />
           <input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
+            style={{ padding: 8, borderRadius: 8 }}
           />
-
+        </div>
+        </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
           <select
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
+            style={{ padding: 8, borderRadius: 8, background: '#1f1f2b', color: '#e0e0e0', border: '1px solid #5a5a70' }}
           >
             <option value="all">All Types</option>
             <option value="process">Process</option>
@@ -256,31 +259,25 @@ const handleDownload = (url, originalName) => {
         </div>
 
         {/* File List */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fill, minmax(280px,1fr))",
-            gap: 12,
-          }}
-        >
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 12 }}>
           {files.length ? (
             files.map((f) => (
-              <div key={f.id} className="card">
-                <div style={{ fontWeight: "bold" }}>{f.title}</div>
-                <div className="small">{f.original_name}</div>
+              <div key={f.id} className="card"style={{ padding: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{f.title}</div>
+                <div className="small" style={{marginTop: 4, wordBreak: 'break-all'}}>{f.original_name}</div>
+                <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
                 <div className="small">
                   Uploaded:{" "}
                   {new Date(f.upload_date).toLocaleString()}
                 </div>
 
-                <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
                   <button
-                    onClick={() => handlePreview(f.file_url)}
+                    onClick={() => handlePreview(f.file_url)} style={{ background: '#2196F3' }}
                   >
                     Preview
                   </button>
-                  <button onClick={() => handleDownload(f.file_url, f.original_name)}>
+                  <button onClick={() => handleDownload(f.file_url, f.original_name)} style={{ background: '#009688' }}>
                     Download
                   </button>
                   <button

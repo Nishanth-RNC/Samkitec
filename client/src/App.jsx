@@ -31,13 +31,11 @@ export default function App() {
       if (to) params.set('to', to)
       if (docTypeFilter && docTypeFilter !== 'all') params.set('type', docTypeFilter)
 
-      const res = await fetch(`${API_BASE}/api/documents?` + params.toString())
+      // Ensure URL doesn't double slash if API_BASE ends with /
+      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
+      const res = await fetch(`${baseUrl}/api/documents?` + params.toString())
 
-      if (!res.ok) {
-        console.error(`Failed to fetch documents: ${res.status}`)
-        setFiles([])
-        return
-      }
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
 
       const data = await res.json()
       setFiles(Array.isArray(data) ? data : [])
@@ -54,18 +52,22 @@ export default function App() {
     form.append('file', selectedFile)
     form.append('title', selectedFile.name)
     form.append('doc_type', docType)
+    
     try {
-      const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: form })
+      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
+      const res = await fetch(`${baseUrl}/api/upload`, { method: 'POST', body: form })
+      
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Upload failed' }))
-        throw new Error(err.error || res.statusText)
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Server Error: ${res.status}`)
       }
+      
       setSelectedFile(null)
       fileInputRef.current.value = ''
       await fetchList()
-      alert('Uploaded!')
+      alert('Uploaded successfully!')
     } catch (err) {
-      alert('Upload error: ' + err.message)
+      alert(err.message)
     } finally {
       setUploading(false)
     }
@@ -73,22 +75,26 @@ export default function App() {
 
   async function handleDelete(id) {
     if (!confirm('Delete this file?')) return
-    await fetch(`${API_BASE}/api/documents/${id}`, { method: 'DELETE' })
+    const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
+    await fetch(`${baseUrl}/api/documents/${id}`, { method: 'DELETE' })
     await fetchList()
   }
 
   async function handleRename(id, oldTitle) {
     const newTitle = prompt('New title', oldTitle)
-    if (!newTitle) return
+    if (!newTitle || newTitle === oldTitle) return
+    
     try {
-      const res = await fetch(`${API_BASE}/api/documents/${id}`, {
+      const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
+      const res = await fetch(`${baseUrl}/api/documents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle })
       })
+      
       if (!res.ok) {
         if (res.status === 404) {
-           alert('Document not found (it may have been deleted). Refreshing list...')
+           alert('Document mismatch: The list is outdated. Refreshing...')
            await fetchList()
            return
         }
@@ -101,13 +107,24 @@ export default function App() {
   }
 
   const handlePreview = (fileUrl) => {
-    // Use Google Docs Viewer for Office documents AND PDFs to avoid browser plugin issues
-    if (fileUrl.match(/\.(docx?|pptx?|xlsx?|pdf)$/i)) {
+    if (!fileUrl) return;
+    
+    // For DOCX/PPTX/XLSX, Google Docs Viewer is required
+    if (fileUrl.match(/\.(docx?|pptx?|xlsx?)$/i)) {
       window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`, '_blank');
-    } else {
-      // Images and other formats try direct open
+    } 
+    // For PDFs and Images, try opening directly
+    else {
       window.open(fileUrl, '_blank');
     }
+  }
+
+  // Force download as backup if preview fails
+  const handleDownload = (fileUrl) => {
+    if (!fileUrl) return;
+    // Cloudinary trick: add fl_attachment to force download header
+    const downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
+    window.open(downloadUrl, '_blank');
   }
 
   return (
@@ -142,14 +159,14 @@ export default function App() {
               disabled={uploading}
               style={{ marginLeft: 8 }}
             >
-              {uploading ? 'Uploading...' : 'Upload'}
+              {uploading ? 'Scanning & Uploading...' : 'Upload'}
             </button>
           </div>
 
           <div style={{ minWidth: 300, flex: 1 }}>
             <div className="search-row">
               <input
-                placeholder="Search..."
+                placeholder="Search logs..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ flex: 1, padding: 8, borderRadius: 8 }}
@@ -172,24 +189,29 @@ export default function App() {
           </select>
         </div>
 
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px,1fr))', gap: 12 }}>
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 12 }}>
           {Array.isArray(files) && files.length > 0 ? (
             files.map((f) => (
               <div key={f.id} className="file-card card" style={{ padding: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 700 }}>{f.title} ({f.doc_type})</div>
-                  <div className="small">Type: {f.doc_type === 'process' ? 'Process' : 'Work'}</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{f.title}</div>
+                  <div className="small" style={{marginTop: 4, wordBreak: 'break-all'}}>{f.original_name}</div>
+                  <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
                   <div className="small">Uploaded: {new Date(f.upload_date).toLocaleString()}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  {/* If using Cloudinary, open file_url directly */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
                   {f.file_url && (
-                    <button onClick={() => handlePreview(f.file_url)}>
-                      Preview
-                    </button>
+                    <>
+                      <button onClick={() => handlePreview(f.file_url)} style={{ background: '#2196F3' }}>
+                        Preview
+                      </button>
+                      <button onClick={() => handleDownload(f.file_url)} style={{ background: '#009688' }}>
+                        Download
+                      </button>
+                    </>
                   )}
                   <button onClick={() => handleRename(f.id, f.title)}>Rename</button>
-                  <button onClick={() => handleDelete(f.id)}>Delete</button>
+                  <button onClick={() => handleDelete(f.id)} style={{ background: '#f44336' }}>Delete</button>
                 </div>
               </div>
             ))

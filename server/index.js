@@ -98,10 +98,12 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             if (scan.isInfected) throw new Error('Virus detected');
         }
 
-    const cloud = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'samkitec_reports',
-      resource_type: 'raw',
-    });
+        const cloud = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'samkitec_reports',
+        resource_type: 'raw',
+        use_filename: true,
+        unique_filename: false,
+        });
 
     fs.unlinkSync(req.file.path);
 

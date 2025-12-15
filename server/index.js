@@ -11,12 +11,18 @@ const path = require('path');
 
 const PORT = process.env.PORT || 4000;
 
-// --- Database Setup (PostgreSQL) ---
+// --- 1. Ensure Temp Directory Exists ---
+const TEMP_DIR = path.join(__dirname, 'uploads_temp');
+if (!fs.existsSync(TEMP_DIR)) {
+  fs.mkdirSync(TEMP_DIR, { recursive: true });
+}
+
+// --- Database Setup ---
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // Required for many hosted Postgres instances (like Render)
 });
 
-// Initialize DB Tables
 const initDb = async () => {
   try {
     await pool.query(`
@@ -37,26 +43,17 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
         document_id UUID,
-        action TEXT, -- 'UPLOAD', 'DELETE', 'RENAME'
+        action TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         details TEXT
       );
     `);
-    console.log("✅ Database tables initialized (PostgreSQL)");
+    console.log("✅ Database tables initialized");
   } catch (err) {
-    console.error("❌ Database initialization error:", err);
+    console.error("❌ Database init error:", err);
   }
 };
-// Retry connection logic for Docker startup timing
-const connectWithRetry = () => {
-  pool.connect()
-    .then(() => initDb())
-    .catch((err) => {
-      console.error('Failed to connect to DB, retrying in 5 seconds...', err.message);
-      setTimeout(connectWithRetry, 5000);
-    });
-};
-connectWithRetry();
+initDb();
 
 // --- Cloudinary Config ---
 cloudinary.config({
@@ -70,18 +67,11 @@ const ClamScan = new NodeClam().init({
   remove_infected: true,
   quarantine_infected: false, 
   debug_mode: false,
-  file_list: null, 
-  scan_log: null,
   clamdscan: {
     host: process.env.CLAMAV_HOST || 'clamav',
     port: process.env.CLAMAV_PORT || 3310,
-    timeout: 60000,
-    local_fallback: false,
-    path: null, 
-    multiscan: true, 
-    reload_db: false, 
     active: true, 
-    bypass_test: true, 
+    bypass_test: true, // Bypass local binary check
   },
   preference: 'clamdscan' 
 });
@@ -90,7 +80,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const upload = multer({ dest: 'uploads_temp/' }); 
+// --- 2. Global Request Logger (Debug 404s) ---
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+const upload = multer({ dest: TEMP_DIR });
 
 const logAction = async (docId, action, details) => {
   try {
@@ -105,29 +101,35 @@ const logAction = async (docId, action, details) => {
 
 // --- Routes ---
 
-// 1. Upload Document
+// Upload
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const tempPath = req.file.path;
 
   try {
-    // A. Security Scan
+    // Check for empty files (Corruption check)
+    const stats = fs.statSync(tempPath);
+    if (stats.size === 0) {
+      throw new Error("File is empty (0 bytes). Upload failed.");
+    }
+
+    // Security Scan
     let isInfected = false;
     try {
         const clam = await ClamScan;
         const scanResult = await clam.isInfected(tempPath);
         isInfected = scanResult.isInfected;
     } catch (clamErr) {
-        console.warn("ClamAV scan skipped/failed (Service unreachable?):", clamErr.message);
+        console.warn("ClamAV warning:", clamErr.message);
     }
 
     if (isInfected) {
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      return res.status(400).json({ error: 'Security Alert: File rejected due to virus detection.' });
+      return res.status(400).json({ error: 'Security Alert: Virus detected.' });
     }
 
-    // B. Upload to Cloudinary
+    // Upload to Cloudinary
     const cloudRes = await cloudinary.uploader.upload(tempPath, {
       folder: 'samkitec_reports',
       resource_type: 'auto',
@@ -135,9 +137,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       unique_filename: true,
     });
 
+    // Cleanup
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
-    // C. Save Metadata
+    // Save Metadata
     const id = uuidv4();
     const meta = {
       id,
@@ -161,58 +164,58 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
   } catch (err) {
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-    console.error(err);
+    console.error("Upload Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 2. List Documents
+// List
 app.get('/api/documents', async (req, res) => {
-  const { search = '', from, to, type, limit = 100, offset = 0 } = req.query;
-  
-  let query = 'SELECT * FROM documents WHERE 1=1';
-  const params = [];
-  let paramCount = 1;
-
-  if (search) {
-    query += ` AND (original_name ILIKE $${paramCount} OR title ILIKE $${paramCount})`;
-    params.push(`%${search}%`);
-    paramCount++;
-  }
-  if (from) {
-    query += ` AND upload_date >= $${paramCount}`;
-    params.push(from);
-    paramCount++;
-  }
-  if (to) {
-    query += ` AND upload_date <= $${paramCount}`;
-    params.push(to);
-    paramCount++;
-  }
-  if (type && type !== 'all') {
-    query += ` AND doc_type = $${paramCount}`;
-    params.push(type);
-    paramCount++;
-  }
-
-  query += ` ORDER BY upload_date DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-  params.push(limit, offset);
-
   try {
+    const { search = '', from, to, type, limit = 100, offset = 0 } = req.query;
+    
+    let query = 'SELECT * FROM documents WHERE 1=1';
+    const params = [];
+    let paramCount = 1;
+
+    if (search) {
+      query += ` AND (original_name ILIKE $${paramCount} OR title ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+    if (from) {
+      query += ` AND upload_date >= $${paramCount}`;
+      params.push(from);
+      paramCount++;
+    }
+    if (to) {
+      query += ` AND upload_date <= $${paramCount}`;
+      params.push(to);
+      paramCount++;
+    }
+    if (type && type !== 'all') {
+      query += ` AND doc_type = $${paramCount}`;
+      params.push(type);
+      paramCount++;
+    }
+
+    query += ` ORDER BY upload_date DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(limit, offset);
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error("List Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 3. Rename Document
+// Rename (This is the critical missing route)
 app.put('/api/documents/:id', async (req, res) => {
   const { id } = req.params;
   const { title } = req.body;
-  
-  // Debug Log: Check if request reaches here
-  console.log(`Renaming document ${id} to "${title}"`);
+
+  console.log(`Processing RENAME for ${id} to "${title}"`); // Debug log
 
   if (!title) return res.status(400).json({ error: 'Title is required' });
 
@@ -223,8 +226,8 @@ app.put('/api/documents/:id', async (req, res) => {
     );
 
     if (result.rowCount === 0) {
-        console.log(`Document ${id} not found in DB`);
-        return res.status(404).json({ error: 'Not found' });
+      console.log(`RENAME: Document ${id} not found.`);
+      return res.status(404).json({ error: 'Not found' });
     }
 
     await logAction(id, 'RENAME', `Renamed to: ${title}`);
@@ -235,33 +238,34 @@ app.put('/api/documents/:id', async (req, res) => {
   }
 });
 
-// 4. Delete Document
+// Delete
 app.delete('/api/documents/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
     const docResult = await pool.query('SELECT * FROM documents WHERE id = $1', [id]);
     if (docResult.rowCount === 0) return res.status(404).json({ error: 'Not found' });
 
     const doc = docResult.rows[0];
 
-    try {
-      const publicId = doc.file_url.split('/').pop().split('.')[0];
-      await cloudinary.uploader.destroy(`samkitec_reports/${publicId}`);
-    } catch (e) {
-      console.warn('Cloudinary delete warning:', e.message);
+    // Cloudinary delete
+    if (doc.file_url) {
+      try {
+        const publicId = doc.file_url.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`samkitec_reports/${publicId}`);
+      } catch (e) {
+        console.warn('Cloudinary delete warning:', e.message);
+      }
     }
 
     await pool.query('DELETE FROM documents WHERE id = $1', [id]);
-    
     await logAction(id, 'DELETE', `Deleted file: ${doc.original_name}`);
     res.json({ success: true });
-
   } catch (err) {
+    console.error("Delete Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/', (req, res) => res.send('Samkitec Secure Backend Running (Postgres + ClamAV)'));
+app.get('/', (req, res) => res.send('Samkitec Secure Backend Online'));
 
 app.listen(PORT, () => console.log(`Server listening on ${PORT}`));

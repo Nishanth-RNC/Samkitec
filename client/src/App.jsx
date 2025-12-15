@@ -1,198 +1,130 @@
-import React, { useEffect, useState, useRef } from "react";
-import logo from "./assets/logo.jpeg";
+import React, { useEffect, useState, useRef } from 'react';
+import logo from './assets/logo.jpeg';
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000';
 
 export default function App() {
   const [files, setFiles] = useState([]);
-  const [search, setSearch] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [docTypeFilter, setDocTypeFilter] = useState("all");
+  const [search, setSearch] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [docTypeFilter, setDocTypeFilter] = useState('all');
 
   const [selectedFile, setSelectedFile] = useState(null);
-  const [docType, setDocType] = useState("process");
+  const [docType, setDocType] = useState('process');
   const [uploading, setUploading] = useState(false);
 
   const fileInputRef = useRef(null);
 
-  /* ---------------- FETCH DOCUMENT LIST ---------------- */
-
+  /* ---------------- FETCH LIST ---------------- */
   useEffect(() => {
     fetchList();
   }, []);
 
   useEffect(() => {
-    const delay = setTimeout(fetchList, 300);
-    return () => clearTimeout(delay);
+    const t = setTimeout(fetchList, 300);
+    return () => clearTimeout(t);
   }, [search, from, to, docTypeFilter]);
 
   async function fetchList() {
     try {
       const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      if (docTypeFilter !== 'all') params.set('type', docTypeFilter);
 
-      if (search) params.set("search", search);
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-      if (docTypeFilter !== "all") params.set("type", docTypeFilter);
-
-      const base =
-        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
-
-      const res = await fetch(
-        `${base}/api/documents?${params.toString()}`
-      );
-
-      if (!res.ok) throw new Error("Failed to fetch");
-
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const res = await fetch(`${base}/api/documents?${params.toString()}`);
+      if (!res.ok) throw new Error('Fetch failed');
       const data = await res.json();
       setFiles(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       setFiles([]);
     }
   }
 
   /* ---------------- UPLOAD ---------------- */
-
   async function handleUpload() {
-    if (!selectedFile) {
-      alert("Please choose a PDF or DOCX file");
-      return;
-    }
-
+    if (!selectedFile) return alert('Choose a file');
     setUploading(true);
 
     try {
       const form = new FormData();
-      form.append("file", selectedFile);
-      form.append("title", selectedFile.name);
-      form.append("doc_type", docType);
+      form.append('file', selectedFile);
+      form.append('title', selectedFile.name);
+      form.append('doc_type', docType);
 
-      const base =
-        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
-
-      const res = await fetch(`${base}/api/upload`, {
-        method: "POST",
-        body: form,
-      });
-
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+      const res = await fetch(`${base}/api/upload`, { method: 'POST', body: form });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Upload failed");
+        throw new Error(err.error || 'Upload failed');
       }
 
       setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await fetchList();
-      alert("Uploaded successfully");
-    } catch (err) {
-      alert(err.message);
+      alert('Uploaded successfully');
+    } catch (e) {
+      alert(e.message);
     } finally {
       setUploading(false);
     }
   }
 
-  /* ---------------- DELETE ---------------- */
-
-  async function handleDelete(id) {
-    if (!confirm("Delete this document?")) return;
-
-    try {
-      const base =
-        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
-
-      const res = await fetch(`${base}/api/documents/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Delete failed");
-
-      await fetchList();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
   /* ---------------- RENAME ---------------- */
-
   async function handleRename(id, oldTitle) {
-    const newTitle = prompt("New title", oldTitle);
+    const newTitle = prompt('New title', oldTitle);
     if (!newTitle || newTitle === oldTitle) return;
 
-    try {
-      const base =
-        API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
+    const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    const res = await fetch(`${base}/api/documents/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTitle })
+    });
 
-      const res = await fetch(`${base}/api/documents/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle }),
-      });
+    if (res.status === 404) return fetchList();
+    if (!res.ok) return alert('Rename failed');
+    fetchList();
+  }
 
-      if (res.status === 404) {
-        alert("Document mismatch. Refreshing list…");
-        await fetchList();
-        return;
-      }
+  /* ---------------- DELETE ---------------- */
+  async function handleDelete(id) {
+    if (!confirm('Delete this document?')) return;
+    const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    await fetch(`${base}/api/documents/${id}`, { method: 'DELETE' });
+    fetchList();
+  }
 
-      if (!res.ok) throw new Error("Rename failed");
-
-      await fetchList();
-    } catch (err) {
-      alert(err.message);
+  /* ---------------- PREVIEW ---------------- */
+  const handlePreview = (url) => {
+    if (!url) return;
+    if (url.toLowerCase().endsWith('.pdf')) {
+      window.open(url, '_blank');
+    } else {
+      window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`, '_blank');
     }
-  }
+  };
 
-  /* ---------------- PREVIEW & DOWNLOAD ---------------- */
+  /* ---------------- DOWNLOAD (BROWSER-NATIVE) ---------------- */
+  const handleDownload = (url, originalName) => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = originalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
- const handlePreview = (url) => {
-  if (!url) return;
-
-  // PDFs can preview directly
-  if (url.toLowerCase().endsWith('.pdf')) {
-    window.open(url, '_blank');
-  } else {
-    // DOCX needs Google Docs viewer
-    window.open(
-      `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`,
-      '_blank'
-    );
-  }
-};
-
-const handleDownload = (url, originalName) => {
-  if (!url) return;
-
-  const encodedName = encodeURIComponent(originalName);
-
-  const downloadUrl = url.replace(
-    '/upload/',
-    `/upload/fl_attachment:${encodedName}/`
-  );
-
-  window.open(downloadUrl, '_blank');
-};
   /* ---------------- UI ---------------- */
-
   return (
     <div>
-      <header
-        className="header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 16,
-        }}
-      >
-        <img
-          src={logo}
-          alt="Samkitec Logo"
-          style={{ height: 60, width: 60, objectFit: "contain" }}
-        />
+      <header className="header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <img src={logo} alt="Samkitec Logo" style={{ height: 60 }} />
         <div>
           <h1>Samkitec</h1>
           <h2>green technologies</h2>
@@ -200,102 +132,41 @@ const handleDownload = (url, originalName) => {
       </header>
 
       <main className="container">
-        {/* Upload */}
-        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '300px' }}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-            />
-
-            <select value={docType} onChange={(e) => setDocType(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
-                <option value="process">Process Report</option>
-                <option value="work">Work Report</option>
-              </select>
-
-            <button
-              onClick={handleUpload}
-              disabled={uploading || !selectedFile}
-              style={{ marginLeft: 8 }}
-            >
-              {uploading ? "Uploading…" : "Upload"}
-            </button>
-          </div>
-
-        {/* Filters */}
-        <div className="card" style={{minWidth: 300, flex: 1}}>
-          <input
-            placeholder="Search logs…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, padding: 8, borderRadius: 8 }}
-          />
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            style={{ padding: 8, borderRadius: 8 }}
-          />
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            style={{ padding: 8, borderRadius: 8 }}
-          />
+        <div className="card" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <input ref={fileInputRef} type="file" accept=".pdf,.docx" onChange={(e) => setSelectedFile(e.target.files[0])} />
+          <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+            <option value="process">Process</option>
+            <option value="work">Work</option>
+          </select>
+          <button onClick={handleUpload} disabled={uploading}>{uploading ? 'Uploading…' : 'Upload'}</button>
         </div>
-        </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
-          <select
-            value={docTypeFilter}
-            onChange={(e) => setDocTypeFilter(e.target.value)}
-            style={{ padding: 8, borderRadius: 8, background: '#1f1f2b', color: '#e0e0e0', border: '1px solid #5a5a70' }}
-          >
-            <option value="all">All Types</option>
+
+        <div className="card" style={{ marginTop: 10 }}>
+          <input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <select value={docTypeFilter} onChange={(e) => setDocTypeFilter(e.target.value)}>
+            <option value="all">All</option>
             <option value="process">Process</option>
             <option value="work">Work</option>
           </select>
         </div>
 
-        {/* File List */}
-        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 12 }}>
-          {files.length ? (
-            files.map((f) => (
-              <div key={f.id} className="card"style={{ padding: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{f.title}</div>
-                <div className="small" style={{marginTop: 4, wordBreak: 'break-all'}}>{f.original_name}</div>
-                <div className="small">
-                  Uploaded:{" "}
-                  {new Date(f.upload_date).toLocaleString()}
-                </div>
-
-                <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
-                  <button
-                    onClick={() => handlePreview(f.file_url)}
-                  >
-                    Preview
-                  </button>
-                  <button onClick={() => handleDownload(f.file_url, f.original_name)}>
-                    Download
-                  </button>
-                  <button
-                    onClick={() => handleRename(f.id, f.title)}
-                  >
-                    Rename
-                  </button>
-                  <button
-                    style={{ background: "#f44336" }}
-                    onClick={() => handleDelete(f.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
+        <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 12 }}>
+          {files.length ? files.map(f => (
+            <div key={f.id} className="card" style={{ padding: 12 }}>
+              <b>{f.title}</b>
+              <div className="small">{f.original_name}</div>
+              <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
+              <div className="small">{new Date(f.upload_date).toLocaleString()}</div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                <button onClick={() => handlePreview(f.file_url)}>Preview</button>
+                <button onClick={() => handleDownload(f.file_url, f.original_name)}>Download</button>
+                <button onClick={() => handleRename(f.id, f.title)}>Rename</button>
+                <button style={{ background: '#f44336' }} onClick={() => handleDelete(f.id)}>Delete</button>
               </div>
-            ))
-          ) : (
-            <div style={{ color: "#888" }}>No files found.</div>
-          )}
+            </div>
+          )) : <div>No files found.</div>}
         </div>
       </main>
     </div>

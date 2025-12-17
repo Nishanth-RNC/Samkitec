@@ -126,13 +126,13 @@ export default function App() {
       <header className="header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <img src={logo} alt="Samkitec Logo" style={{ height: 60 }} />
         <div>
-          <h1>Samkitec</h1>
-          <h2>green technologies</h2>
+          <h1>PYROGREEN</h1>
+          <h2>ENERGY PRIVATE LIMITED</h2>
         </div>
       </header>
 
       <main className="container">
-        <div className="card" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="doc-grid" >
           <input ref={fileInputRef} type="file" accept=".pdf,.docx" onChange={(e) => setSelectedFile(e.target.files[0])} />
           <select value={docType} onChange={(e) => setDocType(e.target.value)}>
             <option value="process">Process</option>
@@ -154,7 +154,7 @@ export default function App() {
 
         <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 12 }}>
           {files.length ? files.map(f => (
-            <div key={f.id} className="card" style={{ padding: 12 }}>
+            <div key={f.id} className="card">
               <b>{f.title}</b>
               <div className="small">{f.original_name}</div>
               <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
@@ -163,7 +163,7 @@ export default function App() {
                 <button onClick={() => handlePreview(f.file_url)}>Preview</button>
                 <button onClick={() => handleDownload(f.file_url, f.original_name)}>Download</button>
                 <button onClick={() => handleRename(f.id, f.title)}>Rename</button>
-                <button style={{ background: '#f44336' }} onClick={() => handleDelete(f.id)}>Delete</button>
+                <button className="danger" onClick={() => handleDelete(f.id)}>Delete</button>
               </div>
             </div>
           )) : <div>No files found.</div>}

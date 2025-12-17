@@ -1,35 +1,135 @@
-* { box-sizing: border-box; }
-body { margin:0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(135deg,#1e1e2f,#2c2c3e); color:#e0e0e0 }
-.header { padding:48px 24px; text-align:center; background: linear-gradient(90deg,#0f4c75,#3282b8); color:white; }
-.header h1{ font-size:48px; margin:0; letter-spacing: -1px; color:#f0f0f0 }
-.header h2{ font-size:18px; margin:4px 0 0 0; opacity:0.85; color:#d0d0d0 }
-.container{ max-width:1100px; margin:24px auto; padding:12px }
-.card{ background: linear-gradient(180deg,#2b2b3b,#1f1f2b); padding:14px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.5); margin-bottom:12px; color:#e0e0e0 }
-.grid{ display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:12px }
-.file-card { padding:12px; border-radius:10px; background:linear-gradient(180deg,#3a3a4f,#2e2e40); color:#e0e0e0 }
-.file-card button { color:#ffffff; background:#0f4c75; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:13px }
-.file-card button:hover { background:#3282b8 }
-.btn{ display:inline-block; padding:8px 12px; border-radius:8px; cursor:pointer; border:none; color:#fff }
-.btn-primary { background:#0f4c75; color:#fff }
-.btn-ghost { background:#444; border:1px solid #5a5a70; color:#fff }
-.search-row{ display:flex; gap:8px; align-items:center; margin-bottom:12px }
-.search-row input{ background:#1f1f2b; color:#e0e0e0; border:1px solid #5a5a70; border-radius:8px; padding:8px; color-scheme: dark; }
-.small { font-size:13px; opacity:0.7 }
-.progress { height:6px; background:#444; border-radius:6px; overflow:hidden }
-.progress > i { display:block; height:100%; background:linear-gradient(90deg,#0f4c75,#3282b8); width:0% }
-.footer { text-align:center; margin:24px 0; font-size:13px; color:#a0a0a0 }
-/* Simple spinner */
-.spinner {
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #00ff9d;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  animation: spin 1s linear infinite;
-  margin-left: 10px;
+/* ----------- GLOBAL ----------- */
+* {
+  box-sizing: border-box;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+body {
+  margin: 0;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(circle at top, #1a1f2b, #0e1118);
+  color: #e6e6eb;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+h2 {
+  margin: 0;
+  font-weight: 400;
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 24px;
+}
+
+/* ----------- HEADER ----------- */
+.header {
+  padding: 24px;
+  background: linear-gradient(135deg, #1f2636, #151923);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05),
+              0 10px 40px rgba(0,0,0,0.6);
+}
+
+/* ----------- CARDS (EMBOSSED) ----------- */
+.card {
+  background: linear-gradient(145deg, #1a2030, #121726);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow:
+    8px 8px 18px rgba(0,0,0,0.6),
+    -6px -6px 16px rgba(255,255,255,0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    12px 12px 26px rgba(0,0,0,0.7),
+    -6px -6px 18px rgba(255,255,255,0.06);
+}
+
+/* ----------- DOCUMENT GRID ----------- */
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+/* ----------- DOCUMENT TITLE ----------- */
+.doc-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.doc-meta {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  word-break: break-all;
+}
+
+/* ----------- BUTTONS (EMBOSSED) ----------- */
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(145deg, #222a3f, #171c2a);
+  color: #e6e6eb;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.05),
+    inset -1px -1px 2px rgba(0,0,0,0.6),
+    4px 4px 10px rgba(0,0,0,0.6);
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.08),
+    inset -1px -1px 2px rgba(0,0,0,0.7),
+    6px 6px 14px rgba(0,0,0,0.8);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 3px 3px 6px rgba(0,0,0,0.8);
+}
+
+button.danger {
+  background: linear-gradient(145deg, #b12b2b, #7d1c1c);
+}
+
+/* ----------- INPUTS ----------- */
+input, select {
+  background: linear-gradient(145deg, #141a28, #0f1420);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #e6e6eb;
+  box-shadow:
+    inset 2px 2px 6px rgba(0,0,0,0.7),
+    inset -2px -2px 6px rgba(255,255,255,0.04);
+}
+
+input:focus, select:focus {
+  outline: none;
+  box-shadow:
+    inset 2px 2px 6px rgba(0,0,0,0.9),
+    0 0 0 2px rgba(100,140,255,0.4);
+}
+
+/* ----------- SMALL TEXT ----------- */
+.small {
+  font-size: 0.75rem;
+  opacity: 0.75;
 }

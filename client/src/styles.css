@@ -133,3 +133,30 @@ input:focus, select:focus {
   font-size: 0.75rem;
   opacity: 0.75;
 }
+
+/* ---------- SELECT & DROPDOWN FIX ---------- */
+select {
+  color: #e6e6eb;
+  background: linear-gradient(145deg, #141a28, #0f1420);
+}
+
+/* Dropdown list (VERY IMPORTANT) */
+select option {
+  background-color: #0f1420;
+  color: #e6e6eb;
+}
+
+/* Hover & selected option */
+select option:hover,
+select option:checked {
+  background-color: #1e2538;
+  color: #ffffff;
+}
+
+/* ---------- BUTTON ROW FIX ---------- */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}

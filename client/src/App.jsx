@@ -159,7 +159,7 @@ export default function App() {
               <div className="small">{f.original_name}</div>
               <div className="small" style={{marginTop: 4}}>Type: <span style={{ textTransform: 'uppercase', fontSize: '0.8em', background: '#444', padding: '2px 4px', borderRadius: 4}}>{f.doc_type}</span></div>
               <div className="small">{new Date(f.upload_date).toLocaleString()}</div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+              <div className="button-row">
                 <button onClick={() => handlePreview(f.file_url)}>Preview</button>
                 <button onClick={() => handleDownload(f.file_url, f.original_name)}>Download</button>
                 <button onClick={() => handleRename(f.id, f.title)}>Rename</button>

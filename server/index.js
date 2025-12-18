@@ -208,3 +208,8 @@ app.delete('/api/documents/:id', async (req, res) => {
 
   res.json({ success: true });
 });
+
+/* ---------------- START SERVER ---------------- */
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});

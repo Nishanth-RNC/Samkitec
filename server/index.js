@@ -47,6 +47,36 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+async function purgeExpiredFilesIfAny() {
+  try {
+    const expired = await pool.query(
+      `SELECT id, file_public_id
+       FROM documents
+       WHERE purge_after IS NOT NULL
+         AND purge_after <= NOW()
+       LIMIT 5`
+    );
+
+    for (const doc of expired.rows) {
+      try {
+        await cloudinary.uploader.destroy(doc.file_public_id, {
+          resource_type: 'raw',
+          invalidate: true,
+        });
+      } catch (e) {
+        console.warn('Cloudinary cleanup failed:', e.message);
+      }
+
+      await pool.query(
+        'DELETE FROM documents WHERE id=$1',
+        [doc.id]
+      );
+    }
+  } catch (e) {
+    console.error('Cleanup check failed:', e.message);
+  }
+}
+
 /* ---------------- APP SETUP ---------------- */
 const app = express();
 app.use(cors());
@@ -63,6 +93,7 @@ const allowedTypes = [
 
 /* ---------------- UPLOAD ---------------- */
 app.post('/api/upload', upload.single('file'), async (req, res) => {
+  purgeExpiredFilesIfAny();
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   if (!allowedTypes.includes(req.file.mimetype)) {
@@ -106,6 +137,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
 /* ---------------- LIST + FILTER ---------------- */
 app.get('/api/documents', async (req, res) => {
+  purgeExpiredFilesIfAny();
   try {
     const { search = '', from, to, type } = req.query;
     let query = 'SELECT * FROM documents WHERE 1=1';
@@ -154,13 +186,25 @@ app.put('/api/documents/:id', async (req, res) => {
 
 /* ---------------- DELETE ---------------- */
 app.delete('/api/documents/:id', async (req, res) => {
-  const r = await pool.query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
-  if (!r.rowCount) return res.status(404).json({ error: 'Not found' });
+  const { id } = req.params;
 
-  await cloudinary.uploader.destroy(r.rows[0].file_public_id, { resource_type: 'raw' });
-  await pool.query('DELETE FROM documents WHERE id=$1', [req.params.id]);
+  const result = await pool.query(
+    'SELECT id FROM documents WHERE id=$1 AND deleted_at IS NULL',
+    [id]
+  );
+
+  if (!result.rowCount) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  // Soft delete only
+  await pool.query(
+    `UPDATE documents
+     SET deleted_at = NOW(),
+         purge_after = NOW() + INTERVAL '30 days'
+     WHERE id = $1`,
+    [id]
+  );
 
   res.json({ success: true });
 });
-
-app.listen(PORT, () => console.log('Backend running on port ' + PORT));

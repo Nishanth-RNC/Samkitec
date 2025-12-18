@@ -23,6 +23,7 @@ const pool = new Pool({
 
 (async () => {
   await pool.query(`
+    DROP TABLE IF EXISTS documents;
     CREATE TABLE IF NOT EXISTS documents (
       id UUID PRIMARY KEY,
       original_name TEXT,
@@ -33,7 +34,9 @@ const pool = new Pool({
       upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       title TEXT,
       description TEXT,
-      doc_type TEXT
+      doc_type TEXT,
+      deleted_at TIMESTAMP NULL,
+      purge_after TIMESTAMP NULL
     );
   `);
 })();

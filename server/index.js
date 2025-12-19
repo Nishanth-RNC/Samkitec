@@ -162,13 +162,14 @@ app.get('/api/documents', async (req, res) => {
       params.push(`%${search}%`);
       i++;
     }
-    if (from) {
-      query += ` AND upload_date >= $${i}`;
+      if (from && from.trim() !== '') {
+      query += ` AND upload_date >= $${i}::timestamp`;
       params.push(from);
       i++;
     }
-    if (to) {
-      query += ` AND upload_date <= $${i}`;
+
+    if (to && to.trim() !== '') {
+      query += ` AND upload_date <= $${i}::timestamp`;
       params.push(to);
       i++;
     }

@@ -30,8 +30,8 @@ export default function App() {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
+      if (from && from.trim() !== '') params.set("from", from);
+      if (to && to.trim() !== '') params.set("to", to);
       if (docTypeFilter !== 'all') params.set('type', docTypeFilter);
 
       const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;

@@ -151,7 +151,7 @@ app.get('/api/documents', async (req, res) => {
 
     let query = `
       SELECT * FROM documents
-      WHERE deleted_at IS NULL OR deleted_at = ''
+      WHERE deleted_at IS NULL
     `;
 
     const params = [];

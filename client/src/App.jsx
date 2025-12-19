@@ -110,15 +110,27 @@ export default function App() {
   };
 
   /* ---------------- DOWNLOAD (BROWSER-NATIVE) ---------------- */
-  const handleDownload = (url, originalName) => {
-    if (!url) return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = originalName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async (url, originalName) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+
+      const a = document.createElement('a');
+      const objectUrl = window.URL.createObjectURL(blob);
+
+      a.href = objectUrl;
+      a.download = originalName; // 👈 forces extension
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      alert('Download failed');
+      console.error(err);
+    }
   };
+
 
   /* ---------------- UI ---------------- */
   return (

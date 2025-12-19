@@ -140,7 +140,12 @@ app.get('/api/documents', async (req, res) => {
   purgeExpiredFilesIfAny();
   try {
     const { search = '', from, to, type } = req.query;
-    let query = 'SELECT * FROM documents WHERE deleted_at IS NULL';
+
+    let query = `
+      SELECT * FROM documents
+      WHERE deleted_at IS NULL OR deleted_at = ''
+    `;
+
     const params = [];
     let i = 1;
 
@@ -166,6 +171,7 @@ app.get('/api/documents', async (req, res) => {
     }
 
     query += ' ORDER BY upload_date DESC';
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {

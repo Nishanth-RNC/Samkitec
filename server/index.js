@@ -93,7 +93,6 @@ const allowedTypes = [
 
 /* ---------------- UPLOAD ---------------- */
 app.post('/api/upload', upload.single('file'), async (req, res) => {
-  purgeExpiredFilesIfAny();
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   if (!allowedTypes.includes(req.file.mimetype)) {
@@ -129,6 +128,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     );
 
     res.json({ id, file_url: cloud.secure_url });
+    purgeExpiredFilesIfAny();
   } catch (e) {
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: e.message });
@@ -137,7 +137,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
 /* ---------------- LIST + FILTER ---------------- */
 app.get('/api/documents', async (req, res) => {
-  purgeExpiredFilesIfAny();
   try {
     const { search = '', from, to, type } = req.query;
 
@@ -174,6 +173,7 @@ app.get('/api/documents', async (req, res) => {
 
     const result = await pool.query(query, params);
     res.json(result.rows);
+    purgeExpiredFilesIfAny();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

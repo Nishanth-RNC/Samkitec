@@ -1,60 +1,99 @@
-/* ----------- GLOBAL ----------- */
+/* ================== GLOBAL ================== */
 * {
   box-sizing: border-box;
+}
+
+:root {
+  --bg-main: #0b0f1a;
+  --bg-card: rgba(22, 28, 45, 0.75);
+  --glass: rgba(255,255,255,0.06);
+  --accent: #4da3ff;
+  --accent-glow: rgba(77,163,255,0.6);
+  --danger: #ff4d4d;
+  --text-main: #e8ebf1;
+  --text-muted: #9aa4bf;
 }
 
 body {
   margin: 0;
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  background: radial-gradient(circle at top, #1a1f2b, #0e1118);
-  color: #e6e6eb;
+  background:
+    radial-gradient(circle at 20% 20%, #1c2541, #0b0f1a 60%);
+  color: var(--text-main);
 }
 
+/* ================== TYPOGRAPHY ================== */
 h1 {
   margin: 0;
   font-size: 2rem;
+  letter-spacing: 0.5px;
 }
 
 h2 {
   margin: 0;
   font-weight: 400;
-  font-size: 1rem;
-  opacity: 0.8;
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
 
+/* ================== LAYOUT ================== */
 .container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: auto;
   padding: 24px;
 }
 
-/* ----------- HEADER ----------- */
+/* ================== HEADER ================== */
 .header {
   padding: 24px;
-  background: linear-gradient(135deg, #1f2636, #151923);
-  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.05),
-              0 10px 40px rgba(0,0,0,0.6);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 
-/* ----------- CARDS (EMBOSSED) ----------- */
+/* ================== GLASS CARDS ================== */
 .card {
-  background: linear-gradient(145deg, #1a2030, #121726);
-  border-radius: 16px;
+  background: var(--bg-card);
+  backdrop-filter: blur(18px);
+  border-radius: 18px;
   padding: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
   box-shadow:
-    8px 8px 18px rgba(0,0,0,0.6),
-    -6px -6px 16px rgba(255,255,255,0.05);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+    0 20px 40px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.06),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px);
   box-shadow:
-    12px 12px 26px rgba(0,0,0,0.7),
-    -6px -6px 18px rgba(255,255,255,0.06);
+    0 30px 60px rgba(0,0,0,0.75),
+    0 0 0 1px rgba(77,163,255,0.25);
 }
 
-/* ----------- DOCUMENT GRID ----------- */
+/* ================== GRID ================== */
 .doc-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -62,101 +101,115 @@ h2 {
   margin-top: 20px;
 }
 
-/* ----------- DOCUMENT TITLE ----------- */
+/* ================== DOCUMENT TEXT ================== */
 .doc-title {
   font-size: 1.05rem;
   font-weight: 600;
-  margin-bottom: 4px;
 }
 
-.doc-meta {
-  font-size: 0.8rem;
-  opacity: 0.7;
-  word-break: break-all;
+.doc-meta,
+.small {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  word-break: break-word;
 }
 
-/* ----------- BUTTONS (EMBOSSED) ----------- */
+/* ================== BUTTONS ================== */
 button {
+  position: relative;
   border: none;
   border-radius: 12px;
   padding: 8px 14px;
-  background: linear-gradient(145deg, #222a3f, #171c2a);
-  color: #e6e6eb;
+  background:
+    linear-gradient(145deg, #202b45, #151c2f);
+  color: var(--text-main);
   font-size: 0.85rem;
   cursor: pointer;
+  overflow: hidden;
   box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.05),
-    inset -1px -1px 2px rgba(0,0,0,0.6),
-    4px 4px 10px rgba(0,0,0,0.6);
-  transition: all 0.2s ease;
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 8px 20px rgba(0,0,0,0.7);
+  transition: all 0.25s ease;
+}
+
+button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.25),
+    transparent
+  );
+  transform: translateX(-100%);
+}
+
+button:hover::after {
+  transform: translateX(100%);
+  transition: transform 0.6s ease;
 }
 
 button:hover {
   box-shadow:
-    inset 1px 1px 2px rgba(255,255,255,0.08),
-    inset -1px -1px 2px rgba(0,0,0,0.7),
-    6px 6px 14px rgba(0,0,0,0.8);
-  transform: translateY(-1px);
+    0 12px 28px rgba(0,0,0,0.9),
+    0 0 12px var(--accent-glow);
+  transform: translateY(-2px);
 }
 
 button:active {
   transform: translateY(1px);
-  box-shadow:
-    inset 3px 3px 6px rgba(0,0,0,0.8);
 }
 
 button.danger {
-  background: linear-gradient(145deg, #b12b2b, #7d1c1c);
+  background: linear-gradient(145deg, #ff5a5a, #b32020);
+  box-shadow: 0 8px 20px rgba(255,80,80,0.5);
 }
 
-/* ----------- INPUTS ----------- */
-input, select {
-  background: linear-gradient(145deg, #141a28, #0f1420);
-  border: none;
+/* ================== INPUTS ================== */
+input,
+select {
+  background: rgba(15, 20, 35, 0.9);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   padding: 8px 10px;
-  color: #e6e6eb;
+  color: var(--text-main);
   box-shadow:
-    inset 2px 2px 6px rgba(0,0,0,0.7),
-    inset -2px -2px 6px rgba(255,255,255,0.04);
+    inset 0 2px 6px rgba(0,0,0,0.7);
 }
 
-input:focus, select:focus {
+input::placeholder {
+  color: var(--text-muted);
+}
+
+input:focus,
+select:focus {
   outline: none;
+  border-color: var(--accent);
   box-shadow:
-    inset 2px 2px 6px rgba(0,0,0,0.9),
-    0 0 0 2px rgba(100,140,255,0.4);
+    0 0 0 2px rgba(77,163,255,0.35);
 }
 
-/* ----------- SMALL TEXT ----------- */
-.small {
-  font-size: 0.75rem;
-  opacity: 0.75;
-}
-
-/* ---------- SELECT & DROPDOWN FIX ---------- */
-select {
-  color: #e6e6eb;
-  background: linear-gradient(145deg, #141a28, #0f1420);
-}
-
-/* Dropdown list (VERY IMPORTANT) */
+/* ================== SELECT FIX ================== */
 select option {
-  background-color: #0f1420;
-  color: #e6e6eb;
-}
-
-/* Hover & selected option */
-select option:hover,
-select option:checked {
-  background-color: #1e2538;
+  background-color: #0f1424;
   color: #ffffff;
 }
 
-/* ---------- BUTTON ROW FIX ---------- */
+/* ================== BUTTON ROW ================== */
 .button-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
+}
+
+/* ================== SCROLLBAR ================== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--accent), #2f6fd1);
+  border-radius: 10px;
 }

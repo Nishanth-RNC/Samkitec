@@ -39,6 +39,15 @@ const pool = new Pool({
     );
   `);
 })();
+(async () => {
+  await pool.query(`
+    ALTER TABLE documents
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
+    ADD COLUMN IF NOT EXISTS purge_after TIMESTAMP NULL,
+    ADD COLUMN IF NOT EXISTS doc_type TEXT,
+    ADD COLUMN IF NOT EXISTS description TEXT;
+  `);
+})();
 
 /* ---------------- CLOUDINARY ---------------- */
 cloudinary.config({

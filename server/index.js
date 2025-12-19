@@ -140,7 +140,7 @@ app.get('/api/documents', async (req, res) => {
   purgeExpiredFilesIfAny();
   try {
     const { search = '', from, to, type } = req.query;
-    let query = 'SELECT * FROM documents WHERE 1=1';
+    let query = 'SELECT * FROM documents WHERE deleted_at IS NULL';
     const params = [];
     let i = 1;
 

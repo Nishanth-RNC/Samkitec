@@ -94,9 +94,27 @@ export default function App() {
   /* ---------------- DELETE ---------------- */
   async function handleDelete(id) {
     if (!confirm('Delete this document?')) return;
-    const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
-    await fetch(`${base}/api/documents/${id}`, { method: 'DELETE' });
-    fetchList();
+
+    try {
+      const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+
+      const res = await fetch(`${base}/api/documents/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        throw new Error('Delete failed');
+      }
+
+      // ✅ Instantly remove from UI
+      setFiles(prev => prev.filter(f => f.id !== id));
+
+      // 🔄 Optional: re-sync with backend (safe)
+      fetchList();
+
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   /* ---------------- PREVIEW ---------------- */
@@ -110,26 +128,26 @@ export default function App() {
   };
 
   /* ---------------- DOWNLOAD (BROWSER-NATIVE) ---------------- */
-  const handleDownload = async (url, originalName) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
+ const handleDownload = async (url, originalName) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
 
-      const a = document.createElement('a');
-      const objectUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const objectUrl = window.URL.createObjectURL(blob);
 
-      a.href = objectUrl;
-      a.download = originalName; // 👈 forces extension
-      document.body.appendChild(a);
-      a.click();
+    a.href = objectUrl;
+    a.download = originalName; // 👈 forces extension
+    document.body.appendChild(a);
+    a.click();
 
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      alert('Download failed');
-      console.error(err);
-    }
-  };
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    alert('Download failed');
+    console.error(err);
+  }
+};
 
 
   /* ---------------- UI ---------------- */

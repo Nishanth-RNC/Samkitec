@@ -23,6 +23,7 @@ const pool = new Pool({
 
 (async () => {
   await pool.query(`
+    DROP TABLE IF EXISTS documents;
     CREATE TABLE IF NOT EXISTS documents (
       id UUID PRIMARY KEY,
       original_name TEXT,

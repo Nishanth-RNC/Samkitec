@@ -95,12 +95,17 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const cloud = await cloudinary.uploader.upload(req.file.path, {
       folder: 'samkitec_reports',
-      resource_type: 'raw',
+      resource_type: 'auto',
       use_filename: true,
       unique_filename: true,
     });
 
     fs.unlinkSync(req.file.path);
+    const deleteResourceType =
+    req.file.mimetype === 'application/pdf' ||
+    req.file.mimetype.includes('word')
+      ? 'raw'
+      : cloud.resource_type;
 
     const id = uuidv4();
     await pool.query(
@@ -116,7 +121,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         req.file.size,
         req.body.title || req.file.originalname,
         req.body.doc_type || 'process',
-        cloud.resource_type,
+        deleteResourceType,
       ]
     );
 

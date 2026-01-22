@@ -120,11 +120,7 @@ export default function App() {
   /* ---------------- PREVIEW ---------------- */
   const handlePreview = (url) => {
     if (!url) return;
-    if (url.toLowerCase().endsWith('.pdf')) {
-      window.open(url, '_blank');
-    } else {
-      window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`, '_blank');
-    }
+    window.open(url, '_blank');
   };
 
   /* ---------------- DOWNLOAD (BROWSER-NATIVE) ---------------- */

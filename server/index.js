@@ -1,5 +1,4 @@
 require('dotenv').config();
-
 const express = require('express');
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
@@ -13,7 +12,9 @@ const PORT = process.env.PORT || 4000;
 
 /* ---------------- TEMP UPLOAD DIR ---------------- */
 const TEMP_DIR = path.join(__dirname, 'uploads_temp');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+if (!fs.existsSync(TEMP_DIR)) {
+  fs.mkdirSync(TEMP_DIR, { recursive: true });
+}
 
 /* ---------------- DATABASE ---------------- */
 const pool = new Pool({
@@ -21,6 +22,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Initialize Schema
 (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS documents (
@@ -38,15 +40,13 @@ const pool = new Pool({
       purge_after TIMESTAMP NULL
     );
   `);
-})();
-(async () => {
+
   await pool.query(`
-    ALTER TABLE documents
+    ALTER TABLE documents 
     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS purge_after TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS doc_type TEXT,
-    ADD COLUMN IF NOT EXISTS description TEXT,
-    ADD COLUMN IF NOT EXISTS resource_type TEXT;
+    ADD COLUMN IF NOT EXISTS description TEXT;
   `);
 })();
 
@@ -57,26 +57,37 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+async function purgeExpiredFilesIfAny() {
+  try {
+    const expired = await pool.query(`
+      SELECT id, file_public_id FROM documents 
+      WHERE purge_after IS NOT NULL AND purge_after <= NOW() 
+      LIMIT 5
+    `);
+
+    for (const doc of expired.rows) {
+      try {
+        await cloudinary.uploader.destroy(doc.file_public_id, {
+          resource_type: 'raw',
+          invalidate: true,
+        });
+      } catch (e) {
+        console.warn('Cloudinary cleanup failed:', e.message);
+      }
+      await pool.query('DELETE FROM documents WHERE id=$1', [doc.id]);
+    }
+  } catch (e) {
+    console.error('Cleanup check failed:', e.message);
+  }
+}
+
 /* ---------------- APP SETUP ---------------- */
 const app = express();
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://samkitec-frontend.onrender.com');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
-
+app.use(cors());
 app.use(express.json());
 
 const upload = multer({ dest: TEMP_DIR });
 
-/* ---------------- ALLOWED FILE TYPES ---------------- */
 const allowedTypes = [
   'application/pdf',
   'application/msword',
@@ -95,23 +106,17 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const cloud = await cloudinary.uploader.upload(req.file.path, {
       folder: 'samkitec_reports',
-      resource_type: 'auto',
+      resource_type: 'raw',
       use_filename: true,
-      unique_filename: true,
+      unique_filename: false,
     });
 
     fs.unlinkSync(req.file.path);
-    const deleteResourceType =
-    req.file.mimetype === 'application/pdf' ||
-    req.file.mimetype.includes('word')
-      ? 'raw'
-      : cloud.resource_type;
 
     const id = uuidv4();
     await pool.query(
-      `INSERT INTO documents
-       (id, original_name, file_url, file_public_id, mime_type, size, title, description, doc_type, resource_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'',$8,$9)`,
+      `INSERT INTO documents (id, original_name, file_url, file_public_id, mime_type, size, title, description, doc_type) 
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'',$8)`,
       [
         id,
         req.file.originalname,
@@ -121,11 +126,11 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         req.file.size,
         req.body.title || req.file.originalname,
         req.body.doc_type || 'process',
-        deleteResourceType,
       ]
     );
 
     res.json({ id, file_url: cloud.secure_url });
+    purgeExpiredFilesIfAny();
   } catch (e) {
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: e.message });
@@ -136,12 +141,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 app.get('/api/documents', async (req, res) => {
   try {
     const { search = '', from, to, type } = req.query;
-
-    let query = `
-      SELECT * FROM documents
-      WHERE deleted_at IS NULL
-    `;
-
+    let query = `SELECT * FROM documents WHERE deleted_at IS NULL`;
     const params = [];
     let i = 1;
 
@@ -150,7 +150,8 @@ app.get('/api/documents', async (req, res) => {
       params.push(`%${search}%`);
       i++;
     }
-      if (from && from.trim() !== '') {
+
+    if (from && from.trim() !== '') {
       query += ` AND upload_date >= $${i}::timestamp`;
       params.push(from);
       i++;
@@ -161,6 +162,7 @@ app.get('/api/documents', async (req, res) => {
       params.push(to);
       i++;
     }
+
     if (type && type !== 'all') {
       query += ` AND doc_type = $${i}`;
       params.push(type);
@@ -171,6 +173,7 @@ app.get('/api/documents', async (req, res) => {
 
     const result = await pool.query(query, params);
     res.json(result.rows);
+    purgeExpiredFilesIfAny();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -187,35 +190,28 @@ app.put('/api/documents/:id', async (req, res) => {
   res.json(r.rows[0]);
 });
 
-/* ---------------- DELETE (PERMANENT) ---------------- */
+/* ---------------- DELETE ---------------- */
 app.delete('/api/documents/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
+  
+  const result = await pool.query(
+    'SELECT id FROM documents WHERE id=$1 AND deleted_at IS NULL',
+    [id]
+  );
 
-    const result = await pool.query(
-      'SELECT file_public_id, resource_type FROM documents WHERE id=$1',
-      [id]
-    );
-
-    if (!result.rowCount) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    const { file_public_id } = result.rows[0];
-
-    // ✅ ALWAYS delete as raw (Cloudinary accepts raw for pdf/docx)
-    await cloudinary.uploader.destroy(file_public_id, {
-      resource_type: resource_type || 'raw',
-      invalidate: true,
-    });
-
-    await pool.query('DELETE FROM documents WHERE id=$1', [id]);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Delete failed:', err.message);
-    res.status(500).json({ error: 'Delete failed' });
+  if (!result.rowCount) {
+    return res.status(404).json({ error: 'Not found' });
   }
+
+  // Soft delete logic: mark for deletion and purge in 30 days
+  await pool.query(
+    `UPDATE documents 
+     SET deleted_at = NOW(), purge_after = NOW() + INTERVAL '30 days' 
+     WHERE id = $1`,
+    [id]
+  );
+
+  res.json({ success: true });
 });
 
 /* ---------------- START SERVER ---------------- */

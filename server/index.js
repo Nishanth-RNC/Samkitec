@@ -182,32 +182,33 @@ app.put('/api/documents/:id', async (req, res) => {
 
 /* ---------------- DELETE (PERMANENT) ---------------- */
 app.delete('/api/documents/:id', async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const result = await pool.query(
-    'SELECT file_public_id FROM documents WHERE id=$1',
-    [id]
-  );
+    const result = await pool.query(
+      'SELECT file_public_id FROM documents WHERE id=$1',
+      [id]
+    );
 
-  if (!result.rowCount) {
-    return res.status(404).json({ error: 'Not found' });
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const { file_public_id } = result.rows[0];
+
+    // ✅ ALWAYS delete as raw (Cloudinary accepts raw for pdf/docx)
+    await cloudinary.uploader.destroy(file_public_id, {
+      resource_type: 'raw',
+      invalidate: true,
+    });
+
+    await pool.query('DELETE FROM documents WHERE id=$1', [id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete failed:', err.message);
+    res.status(500).json({ error: 'Delete failed' });
   }
-
-  const { file_public_id } = result.rows[0];
-
-  // ✅ Delete from Cloudinary
-  await cloudinary.uploader.destroy(file_public_id, {
-    resource_type: 'auto',
-    invalidate: true,
-  });
-
-  // ✅ Delete permanently from DB
-  await pool.query(
-    'DELETE FROM documents WHERE id=$1',
-    [id]
-  );
-
-  res.json({ success: true });
 });
 
 /* ---------------- START SERVER ---------------- */

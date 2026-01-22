@@ -95,9 +95,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const cloud = await cloudinary.uploader.upload(req.file.path, {
       folder: 'samkitec_reports',
-      resource_type: 'auto',
+      resource_type: 'raw',
       use_filename: true,
-      unique_filename: false,
+      unique_filename: true,
     });
 
     fs.unlinkSync(req.file.path);

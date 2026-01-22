@@ -46,6 +46,7 @@ const pool = new Pool({
     ADD COLUMN IF NOT EXISTS purge_after TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS doc_type TEXT,
     ADD COLUMN IF NOT EXISTS description TEXT;
+    ADD COLUMN IF NOT EXISTS resource_type TEXT;
   `);
 })();
 
@@ -104,8 +105,8 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const id = uuidv4();
     await pool.query(
       `INSERT INTO documents
-       (id, original_name, file_url, file_public_id, mime_type, size, title, description, doc_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'',$8)`,
+       (id, original_name, file_url, file_public_id, mime_type, size, title, description, doc_type, resource_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'',$8,$9)`,
       [
         id,
         req.file.originalname,
@@ -115,6 +116,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         req.file.size,
         req.body.title || req.file.originalname,
         req.body.doc_type || 'process',
+        cloud.resource_type,
       ]
     );
 
@@ -186,7 +188,7 @@ app.delete('/api/documents/:id', async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      'SELECT file_public_id FROM documents WHERE id=$1',
+      'SELECT file_public_id, resource_type FROM documents WHERE id=$1',
       [id]
     );
 
@@ -198,7 +200,7 @@ app.delete('/api/documents/:id', async (req, res) => {
 
     // ✅ ALWAYS delete as raw (Cloudinary accepts raw for pdf/docx)
     await cloudinary.uploader.destroy(file_public_id, {
-      resource_type: 'raw',
+      resource_type: resource_type || 'raw',
       invalidate: true,
     });
 

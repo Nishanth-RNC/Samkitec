@@ -45,7 +45,7 @@ const pool = new Pool({
     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS purge_after TIMESTAMP NULL,
     ADD COLUMN IF NOT EXISTS doc_type TEXT,
-    ADD COLUMN IF NOT EXISTS description TEXT;
+    ADD COLUMN IF NOT EXISTS description TEXT,
     ADD COLUMN IF NOT EXISTS resource_type TEXT;
   `);
 })();

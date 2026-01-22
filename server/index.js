@@ -56,36 +56,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-async function purgeExpiredFilesIfAny() {
-  try {
-    const expired = await pool.query(
-      `SELECT id, file_public_id
-       FROM documents
-       WHERE purge_after IS NOT NULL
-         AND purge_after <= NOW()
-       LIMIT 5`
-    );
-
-    for (const doc of expired.rows) {
-      try {
-        await cloudinary.uploader.destroy(doc.file_public_id, {
-          resource_type: 'raw',
-          invalidate: true,
-        });
-      } catch (e) {
-        console.warn('Cloudinary cleanup failed:', e.message);
-      }
-
-      await pool.query(
-        'DELETE FROM documents WHERE id=$1',
-        [doc.id]
-      );
-    }
-  } catch (e) {
-    console.error('Cleanup check failed:', e.message);
-  }
-}
-
 /* ---------------- APP SETUP ---------------- */
 const app = express();
 app.use(cors());
@@ -112,7 +82,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const cloud = await cloudinary.uploader.upload(req.file.path, {
       folder: 'samkitec_reports',
-      resource_type: 'raw',
+      resource_type: 'auto',
       use_filename: true,
       unique_filename: false,
     });
@@ -137,7 +107,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     );
 
     res.json({ id, file_url: cloud.secure_url });
-    purgeExpiredFilesIfAny();
   } catch (e) {
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: e.message });
@@ -183,7 +152,6 @@ app.get('/api/documents', async (req, res) => {
 
     const result = await pool.query(query, params);
     res.json(result.rows);
-    purgeExpiredFilesIfAny();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -200,12 +168,12 @@ app.put('/api/documents/:id', async (req, res) => {
   res.json(r.rows[0]);
 });
 
-/* ---------------- DELETE ---------------- */
+/* ---------------- DELETE (PERMANENT) ---------------- */
 app.delete('/api/documents/:id', async (req, res) => {
   const { id } = req.params;
 
   const result = await pool.query(
-    'SELECT id FROM documents WHERE id=$1 AND deleted_at IS NULL',
+    'SELECT file_public_id FROM documents WHERE id=$1',
     [id]
   );
 
@@ -213,12 +181,17 @@ app.delete('/api/documents/:id', async (req, res) => {
     return res.status(404).json({ error: 'Not found' });
   }
 
-  // Soft delete only
+  const { file_public_id } = result.rows[0];
+
+  // ✅ Delete from Cloudinary
+  await cloudinary.uploader.destroy(file_public_id, {
+    resource_type: 'auto',
+    invalidate: true,
+  });
+
+  // ✅ Delete permanently from DB
   await pool.query(
-    `UPDATE documents
-     SET deleted_at = NOW(),
-         purge_after = NOW() + INTERVAL '30 days'
-     WHERE id = $1`,
+    'DELETE FROM documents WHERE id=$1',
     [id]
   );
 
